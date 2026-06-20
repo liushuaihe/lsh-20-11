@@ -29,6 +29,8 @@ export default function RoutePanel() {
     selectedStrategy,
     timePeriod,
     travelMode,
+    userOrigin,
+    userDestination,
     blockedStations,
     isCalculating,
     error,
@@ -37,6 +39,8 @@ export default function RoutePanel() {
     setSelectedStrategy,
     setTimePeriod,
     setTravelMode,
+    setUserOrigin,
+    setUserDestination,
     toggleBlockedStation,
     clearBlockedStations,
     calculateRoutes,
@@ -128,6 +132,153 @@ export default function RoutePanel() {
               })}
             </div>
           </div>
+
+          {travelMode === 'bike-feeder' && (
+            <div className="p-3 bg-gradient-to-br from-teal-50 to-emerald-50 border border-teal-200 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-teal-800 flex items-center gap-1.5">
+                  <Bike size={14} />
+                  骑行接驳位置
+                </h4>
+                <span className="text-[10px] text-teal-600 bg-teal-100 px-2 py-0.5 rounded-full">
+                  未设置时使用默认位置
+                </span>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-teal-700 mb-1 block">
+                  用户出发位置 (X, Y)  ←→  起点站骑行接驳
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 grid grid-cols-2 gap-1.5">
+                    <div className="flex items-center gap-1 bg-white border border-teal-200 rounded-md px-2 py-1">
+                      <span className="text-[10px] text-teal-500">X</span>
+                      <input
+                        type="number"
+                        value={userOrigin?.x ?? ''}
+                        placeholder={startStation ? String(startStation.x + 75) : '475'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '') {
+                            if (!userOrigin?.y) setUserOrigin(null);
+                            else setUserOrigin({ x: 0, y: userOrigin.y });
+                          } else {
+                            const num = Number(val);
+                            const defaultY = startStation ? startStation.y - 75 : 225;
+                            setUserOrigin({ x: num, y: userOrigin?.y || defaultY });
+                          }
+                        }}
+                        className="w-full bg-transparent text-xs text-slate-700 focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 bg-white border border-teal-200 rounded-md px-2 py-1">
+                      <span className="text-[10px] text-teal-500">Y</span>
+                      <input
+                        type="number"
+                        value={userOrigin?.y ?? ''}
+                        placeholder={startStation ? String(startStation.y - 75) : '225'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '') {
+                            if (!userOrigin?.x) setUserOrigin(null);
+                            else setUserOrigin({ x: userOrigin.x, y: 0 });
+                          } else {
+                            const num = Number(val);
+                            const defaultX = startStation ? startStation.x + 75 : 475;
+                            setUserOrigin({ x: userOrigin?.x || defaultX, y: num });
+                          }
+                        }}
+                        className="w-full bg-transparent text-xs text-slate-700 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setUserOrigin(null)}
+                    className="px-2 py-1 bg-white border border-teal-200 rounded-md text-[10px] text-teal-600 hover:bg-teal-50"
+                    title="恢复默认"
+                  >
+                    默认
+                  </button>
+                </div>
+                {startStation && (
+                  <p className="text-[10px] text-teal-600 mt-1">
+                    默认距起点站约 2.1km · 骑行需约 {Math.round(2.1 / 15 * 60)} 分钟
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-teal-700 mb-1 block">
+                  终点站骑行接驳  ←→  用户目的位置 (X, Y)
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 grid grid-cols-2 gap-1.5">
+                    <div className="flex items-center gap-1 bg-white border border-teal-200 rounded-md px-2 py-1">
+                      <span className="text-[10px] text-teal-500">X</span>
+                      <input
+                        type="number"
+                        value={userDestination?.x ?? ''}
+                        placeholder={endStation ? String(endStation.x - 75) : '325'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '') {
+                            if (!userDestination?.y) setUserDestination(null);
+                            else setUserDestination({ x: 0, y: userDestination.y });
+                          } else {
+                            const num = Number(val);
+                            const defaultY = endStation ? endStation.y + 75 : 375;
+                            setUserDestination({ x: num, y: userDestination?.y || defaultY });
+                          }
+                        }}
+                        className="w-full bg-transparent text-xs text-slate-700 focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 bg-white border border-teal-200 rounded-md px-2 py-1">
+                      <span className="text-[10px] text-teal-500">Y</span>
+                      <input
+                        type="number"
+                        value={userDestination?.y ?? ''}
+                        placeholder={endStation ? String(endStation.y + 75) : '375'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '') {
+                            if (!userDestination?.x) setUserDestination(null);
+                            else setUserDestination({ x: userDestination.x, y: 0 });
+                          } else {
+                            const num = Number(val);
+                            const defaultX = endStation ? endStation.x - 75 : 325;
+                            setUserDestination({ x: userDestination?.x || defaultX, y: num });
+                          }
+                        }}
+                        className="w-full bg-transparent text-xs text-slate-700 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setUserDestination(null)}
+                    className="px-2 py-1 bg-white border border-teal-200 rounded-md text-[10px] text-teal-600 hover:bg-teal-50"
+                    title="恢复默认"
+                  >
+                    默认
+                  </button>
+                </div>
+                {endStation && (
+                  <p className="text-[10px] text-teal-600 mt-1">
+                    默认距终点站约 2.1km · 骑行需约 {Math.round(2.1 / 15 * 60)} 分钟
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-1 border-t border-teal-200/60">
+                <p className="text-[10px] text-teal-700 leading-tight">
+                  💡 按各停车场 <b>开锁费+时长单价</b> 计费
+                </p>
+                <p className="text-[10px] text-teal-700 leading-tight">
+                  单次封顶 ¥6
+                </p>
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="text-xs font-medium text-slate-500 mb-2 block">时间段</label>

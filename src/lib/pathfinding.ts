@@ -240,10 +240,11 @@ function buildBikeFeederSegment(
   if (!bikeParking || bikeParking.availableSpots === 0) return null;
 
   const distanceKm = calculateDistanceKm(userX, userY, station.x, station.y);
-  if (distanceKm > 5) return null;
+  if (distanceKm <= 0 || distanceKm > 5) return null;
 
-  const bikeTimeMinutes = Math.ceil((distanceKm / lowCarbonConfig.avgBikeSpeedKmh) * 60);
-  const rawBikeCost = lowCarbonConfig.bikeUnlockFee + distanceKm * lowCarbonConfig.bikeRatePerKm;
+  const bikeTimeMinutes = Math.max(1, Math.ceil((distanceKm / lowCarbonConfig.avgBikeSpeedKmh) * 60));
+  const bikeHours = Math.max(1 / 60, bikeTimeMinutes / 60);
+  const rawBikeCost = bikeParking.unlockFee + bikeHours * bikeParking.unitPricePerHour;
   const bikeCost = Math.min(rawBikeCost, lowCarbonConfig.bikeMaxCostPerTrip);
   const roundedBikeCost = Math.round(bikeCost * 100) / 100;
   const carbonSavedGrams = distanceKm * (lowCarbonConfig.carEmissionPerKm - lowCarbonConfig.bikeEmissionPerKm);
@@ -256,6 +257,13 @@ function buildBikeFeederSegment(
     bikeTimeMinutes,
     bikeCost: roundedBikeCost,
     carbonSavedGrams,
+  };
+}
+
+function defaultUserPositionNearStation(station: Station, offsetPixels: number): { x: number; y: number } {
+  return {
+    x: station.x + offsetPixels,
+    y: station.y - offsetPixels,
   };
 }
 
@@ -419,15 +427,15 @@ function buildRouteResult(
 
   let bikeFeeder: RouteResult['bikeFeeder'] | undefined;
   let totalTime = pathNode.time;
-  let totalCarbonGrams = metroDistanceKm * lowCarbonConfig.metroEmissionPerKm;
+  let bikeToDistanceKm = 0;
+  let bikeFromDistanceKm = 0;
 
   if (travelMode === 'bike-feeder') {
-    const toSegment = userOrigin
-      ? buildBikeFeederSegment('bike-to-station', userOrigin.x, userOrigin.y, startStation)
-      : null;
-    const fromSegment = userDestination
-      ? buildBikeFeederSegment('bike-from-station', userDestination.x, userDestination.y, endStation)
-      : null;
+    const resolvedOrigin = userOrigin ?? defaultUserPositionNearStation(startStation, 75);
+    const resolvedDestination = userDestination ?? defaultUserPositionNearStation(endStation, -75);
+
+    const toSegment = buildBikeFeederSegment('bike-to-station', resolvedOrigin.x, resolvedOrigin.y, startStation);
+    const fromSegment = buildBikeFeederSegment('bike-from-station', resolvedDestination.x, resolvedDestination.y, endStation);
 
     if (toSegment || fromSegment) {
       let totalBikeTime = 0;
@@ -436,12 +444,12 @@ function buildRouteResult(
       if (toSegment) {
         totalBikeTime += toSegment.bikeTimeMinutes;
         totalBikeCost += toSegment.bikeCost;
-        totalCarbonGrams -= toSegment.carbonSavedGrams;
+        bikeToDistanceKm = toSegment.distanceKm;
       }
       if (fromSegment) {
         totalBikeTime += fromSegment.bikeTimeMinutes;
         totalBikeCost += fromSegment.bikeCost;
-        totalCarbonGrams -= fromSegment.carbonSavedGrams;
+        bikeFromDistanceKm = fromSegment.distanceKm;
       }
 
       totalTime += totalBikeTime;
@@ -456,11 +464,16 @@ function buildRouteResult(
     }
   }
 
-  const estimatedTotalKm = metroDistanceKm + (bikeFeeder ? (bikeFeeder.toStation?.distanceKm ?? 0) + (bikeFeeder.fromStation?.distanceKm ?? 0) : 0);
+  const bikeTotalDistanceKm = bikeToDistanceKm + bikeFromDistanceKm;
+  const estimatedTotalKm = metroDistanceKm + bikeTotalDistanceKm;
   const baselineCarbon = calculateBaselineCarbonGrams(estimatedTotalKm);
   const baselineFareValue = calculateBaselineFare(estimatedTotalKm);
 
-  totalCarbonGrams = Math.max(0, totalCarbonGrams);
+  const actualCarbonGrams =
+    metroDistanceKm * lowCarbonConfig.metroEmissionPerKm +
+    bikeToDistanceKm * lowCarbonConfig.bikeEmissionPerKm +
+    bikeFromDistanceKm * lowCarbonConfig.bikeEmissionPerKm;
+  const totalCarbonGrams = Math.max(0, actualCarbonGrams);
   const carbonSaved = Math.max(0, baselineCarbon - totalCarbonGrams);
   const moneySavedValue = Math.max(0, baselineFareValue - totalFare);
 
